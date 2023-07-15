@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/mailhog/data"
@@ -134,12 +135,14 @@ func (maildir *Maildir) List(start, limit int) (*data.Messages, error) {
 	}
 	defer dir.Close()
 
-	n, err := dir.Readdir(0)
+	files, err := dir.Readdir(0)
 	if err != nil {
 		return nil, err
 	}
+	from := minInt(start, len(files))
+	to := minInt(start+limit, len(files))
 
-	for _, fileinfo := range n {
+	for _, fileinfo := range files[from:to] {
 		b, err := ioutil.ReadFile(filepath.Join(maildir.Path, fileinfo.Name()))
 		if err != nil {
 			return nil, err
@@ -151,6 +154,10 @@ func (maildir *Maildir) List(start, limit int) (*data.Messages, error) {
 		m.Created = fileinfo.ModTime()
 		messages = append(messages, m)
 	}
+
+	sort.Slice(messages, func(i, j int) bool {
+	  return messages[i].Created.After(messages[j].Created)
+	})
 
 	log.Printf("Found %d messages", len(messages))
 	msgs := data.Messages(messages)
@@ -181,4 +188,11 @@ func (maildir *Maildir) Load(id string) (*data.Message, error) {
 	m := data.FromBytes(b).Parse("mailhog.example")
 	m.ID = data.MessageID(id)
 	return m, nil
+}
+
+func minInt(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
 }
