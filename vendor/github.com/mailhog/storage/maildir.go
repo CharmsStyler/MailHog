@@ -139,6 +139,11 @@ func (maildir *Maildir) List(start, limit int) (*data.Messages, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].ModTime().After(files[j].ModTime())
+	})
+	
 	from := minInt(start, len(files))
 	to := minInt(start+limit, len(files))
 
@@ -154,10 +159,6 @@ func (maildir *Maildir) List(start, limit int) (*data.Messages, error) {
 		m.Created = fileinfo.ModTime()
 		messages = append(messages, m)
 	}
-
-	sort.Slice(messages, func(i, j int) bool {
-	  return messages[i].Created.After(messages[j].Created)
-	})
 
 	log.Printf("Found %d messages", len(messages))
 	msgs := data.Messages(messages)
